@@ -1,0 +1,97 @@
+WITH attendance AS
+(
+    SELECT
+        date,
+        resource_id,
+        start_time,
+        end_time,
+        is_clock_in,
+        is_clock_out,
+
+        unixepoch(
+            printf(
+                '%04d-%02d-%02d %02d:%02d:00',
+
+                substr(start_time,
+                       instr(substr(start_time,instr(start_time,'/')+1),'/')
+                       + instr(start_time,'/') + 1,
+                       4),
+
+                substr(start_time,1,instr(start_time,'/')-1),
+
+                substr(
+                    start_time,
+                    instr(start_time,'/')+1,
+                    instr(substr(start_time,instr(start_time,'/')+1),'/')-1
+                ),
+
+                substr(
+                    substr(start_time,instr(start_time,' ')+1),
+                    1,
+                    instr(substr(start_time,instr(start_time,' ')+1),':')-1
+                ),
+
+                substr(
+                    substr(start_time,instr(start_time,' ')+1),
+                    instr(substr(start_time,instr(start_time,' ')+1),':')+1
+                )
+            )
+        ) AS start_sec,
+
+        unixepoch(
+            printf(
+                '%04d-%02d-%02d %02d:%02d:00',
+
+                substr(end_time,
+                       instr(substr(end_time,instr(end_time,'/')+1),'/')
+                       + instr(end_time,'/') + 1,
+                       4),
+
+                substr(end_time,1,instr(end_time,'/')-1),
+
+                substr(
+                    end_time,
+                    instr(end_time,'/')+1,
+                    instr(substr(end_time,instr(end_time,'/')+1),'/')-1
+                ),
+
+                substr(
+                    substr(end_time,instr(end_time,' ')+1),
+                    1,
+                    instr(substr(end_time,instr(end_time,' ')+1),':')-1
+                ),
+
+                substr(
+                    substr(end_time,instr(end_time,' ')+1),
+                    instr(substr(end_time,instr(end_time,' ')+1),':')+1
+                )
+            )
+        ) AS end_sec
+
+    FROM test_dein11
+)
+
+SELECT
+    date,
+    resource_id,
+
+    MAX(CASE WHEN is_clock_in=1 THEN start_time END) AS clock_in_time,
+
+    MAX(CASE WHEN is_clock_out=1 THEN end_time END) AS clock_out_time,
+
+    printf(
+        '%02d:%02d:%02d',
+        SUM(end_sec - start_sec) / 3600,
+        (SUM(end_sec - start_sec) % 3600) / 60,
+        SUM(end_sec - start_sec) % 60
+    ) AS total_hours
+
+FROM attendance
+
+GROUP BY date, resource_id
+
+HAVING
+    MAX(is_clock_in)=1
+AND MAX(is_clock_out)=1
+
+ORDER BY date, resource_id;
